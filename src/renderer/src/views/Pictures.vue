@@ -114,16 +114,16 @@ const onMessage = async (e: MessageEvent) => {
     ws.send('1')
     return
   } else {
+    currentObjectName = object_name
+
     if (object_name === 'nothing') {
-      currentObjectName = ''
       mask.style.display = 'block'
       animationLoop?.stop()
+      return
     }
-
-    mask.style.display = 'none'
-    currentObjectName = object_name
     const res = await service.pictures(currentObjectName)
     setSegments(res.content)
+    mask.style.display = 'none'
   }
 }
 

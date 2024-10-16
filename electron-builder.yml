@@ -41,4 +41,5 @@ npmRebuild: false
 publish:
   provider: generic
   url: https://example.com/auto-updates
-
+electronDownload:
+  cache: "D:\\Temp\\electron\\cache"
