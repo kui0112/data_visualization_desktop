@@ -47,6 +47,7 @@ onMounted(async () => {
         console.log('ws connected.')
       }
       ws.onmessage = onMessage
+      ws.onerror = () => location.reload()
     }
   })
   const res1 = await service.currentObjectName()

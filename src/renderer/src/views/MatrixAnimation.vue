@@ -50,10 +50,11 @@ onMounted(async () => {
   service.ws_connect().then((res) => {
     ws = res
     if (ws) {
-      ws.onopen = async (e: MessageEvent) => {
+      ws.onopen = async (_: MessageEvent) => {
         console.log('ws connected.')
       }
       ws.onmessage = onMessage
+      ws.onerror = () => location.reload()
     }
   })
 
