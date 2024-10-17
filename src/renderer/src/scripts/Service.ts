@@ -30,16 +30,19 @@ export const pictures = async (object_name: string) => {
   return await fetch(apiAddress(`/pictures?object_name=${object_name}`)).then(async (res) => await res.json())
 }
 
-export const ws_connect = async (): Promise<WebSocket | null> => {
+export const connect = async (): Promise<WebSocket | null> => {
   return new Promise(resolve => {
+
+    console.log('ws connect connecting...')
     const timerId = setInterval(() => {
       try {
         const ws = new WebSocket(wsAddress('/ws'))
         clearInterval(timerId)
         resolve(ws)
+        console.log('ws connected.')
       } catch (e) {
         console.log('ws connect failed, reconnecting...')
       }
-    }, 1000)
+    }, 1000 * (2 + Math.random() * 2))
   })
 }

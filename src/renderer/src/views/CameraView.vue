@@ -11,6 +11,11 @@ const objectNameLabelContainer = ref<HTMLDivElement | null>(null)
 
 let ws: WebSocket | null = null
 
+const reload = () => {
+  // location.reload()
+  // @ts-ignore
+  window.api.reloadSilently()
+}
 const onMessage = async (e: MessageEvent) => {
   if (router.currentRoute.value.name !== 'CameraView') {
     return
@@ -44,14 +49,31 @@ const onMessage = async (e: MessageEvent) => {
 }
 
 onMounted(async () => {
-  service.ws_connect().then((res) => {
+  setInterval(() => {
+    reload()
+  }, 1000 * 60 * 3)
+
+  service.connect().then((res) => {
     ws = res
     if (ws) {
       ws.onopen = async () => {
-        console.log('ws connected.')
+        console.log('ws opened.')
       }
       ws.onmessage = onMessage
-      ws.onerror = () => location.reload()
+      ws.onerror = () => {
+        // try {
+        //   ws.close()
+        // } catch (err) {
+        //   console.log(err)
+        // }
+
+        reload()
+      }
+      ws.onclose = async () => {
+        // ws = await service.connect()
+
+        reload()
+      }
     }
   })
 

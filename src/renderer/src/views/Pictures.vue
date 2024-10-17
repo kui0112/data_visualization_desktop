@@ -15,6 +15,12 @@ let currentObjectName: string = 'nothing'
 let animationLoop: AnimationLoop | null = null
 let mask: HTMLElement | null = null
 
+const reload = () => {
+  // location.reload()
+  // @ts-ignore
+  window.api.reloadSilently()
+}
+
 class AnimationLoop {
   segments: Array<Segment>
   cursor: number
@@ -29,6 +35,7 @@ class AnimationLoop {
   public async start() {
     this.animationId = Date.now()
     const currentAnimationId = this.animationId
+    // let counter = 0
     while (currentAnimationId === this.animationId) {
       if (!this.segments.length || this.segments.length <= this.cursor) {
         return
@@ -44,9 +51,12 @@ class AnimationLoop {
         }
       }, 1000)
 
-      this.cursor = (this.cursor + 2) % this.segments.length
-
+      this.cursor = (this.cursor + 1) % this.segments.length
       await delay(seg.aliveDuration)
+
+      if (this.cursor === 0) {
+        reload()
+      }
     }
   }
 
@@ -111,7 +121,9 @@ const onMessage = async (e: MessageEvent) => {
     return
   }
   if (object_name === currentObjectName) {
-    ws.send('1')
+    setTimeout(() => {
+      ws.send('1')
+    }, 1.0 + Math.random() * 0.5)
     return
   } else {
     currentObjectName = object_name
@@ -130,14 +142,25 @@ const onMessage = async (e: MessageEvent) => {
 onMounted(async () => {
   mask = document.getElementById('picturesMask')
 
-  service.ws_connect().then((res) => {
+  service.connect().then((res) => {
     ws = res
     if (ws) {
       ws.onopen = async () => {
-        console.log('ws connected.')
+        console.log('ws opened.')
       }
       ws.onmessage = onMessage
-      ws.onerror = () => location.reload()
+      ws.onerror = () => {
+        // try {
+        //   ws.close()
+        // } catch (err) {
+        //   console.log(err)
+        // }
+        reload()
+      }
+      ws.onclose = async () => {
+        // ws = await service.connect()
+        reload()
+      }
     }
   })
   const res1 = await service.currentObjectName()
@@ -167,7 +190,6 @@ onBeforeUnmount(async () => {
     ws.close()
   }
 })
-
 </script>
 
 <template>

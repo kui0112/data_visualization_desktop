@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, session, globalShortcut } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -38,6 +38,7 @@ function createWindow(): void {
     mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    mainWindow.webContents.openDevTools()
   }
 
   // 处理权限请求，总是允许
@@ -45,12 +46,14 @@ function createWindow(): void {
     callback(true)
   })
 
-  // 注册全局快捷键 F11 切换全屏
-  globalShortcut.register('F11', () => {
-    const isFullScreen = mainWindow.isFullScreen()
-    // 切换全屏模式
-    mainWindow.setFullScreen(!isFullScreen)
-    mainWindow.webContents.send('fullscreen-state-change', !isFullScreen)
+  ipcMain.handle('isFullScreen', () => {
+    return mainWindow.isFullScreen()
+  })
+  ipcMain.handle('setFullScreen', (_, flag: boolean) => {
+    mainWindow.setFullScreen(flag)
+  })
+  ipcMain.handle('reloadSilently', () => {
+    mainWindow.webContents.reloadIgnoringCache()
   })
 }
 

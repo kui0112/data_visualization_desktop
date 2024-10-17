@@ -13,6 +13,11 @@ let ws: WebSocket | null = null
 let currentObjectName: string = 'nothing'
 let mask: HTMLElement | null = null
 
+const reload = () => {
+  // location.reload()
+  // @ts-ignore
+  window.api.reloadSilently()
+}
 const onMessage = async (e: MessageEvent) => {
   if (router.currentRoute.value.name !== 'VectorAnimation') {
     return
@@ -26,7 +31,9 @@ const onMessage = async (e: MessageEvent) => {
   }
 
   if (object_name === currentObjectName) {
-    ws.send('1')
+    setTimeout(() => {
+      ws.send('1')
+    }, 1.0 + Math.random() * 0.5)
     return
   } else {
     if (object_name === 'nothing') {
@@ -44,17 +51,34 @@ const onMessage = async (e: MessageEvent) => {
 }
 
 onMounted(async () => {
+  setInterval(() => {
+    reload()
+  }, 1000 * 60 * 3)
+
   mask = document.getElementById('matrixAnimationMask')
   animation.initialize(canvas.value)
 
-  service.ws_connect().then((res) => {
+  service.connect().then((res) => {
     ws = res
     if (ws) {
       ws.onopen = async (_: MessageEvent) => {
-        console.log('ws connected.')
+        console.log('ws opened.')
       }
       ws.onmessage = onMessage
-      ws.onerror = () => location.reload()
+      ws.onerror = () => {
+        // try {
+        //   ws.close()
+        // } catch (err) {
+        //   console.log(err)
+        // }
+
+        reload()
+      }
+      ws.onclose = async () => {
+        // ws = await service.connect()
+
+        reload()
+      }
     }
   })
   const res1 = await service.currentObjectName()

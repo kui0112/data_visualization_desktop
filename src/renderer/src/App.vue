@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import Nav from './components/Nav.vue'
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import TestTools from './components/TestTools.vue'
 
 const navDiv = ref<HTMLDivElement | null>(null)
 const routerViewDiv = ref<HTMLDivElement | null>(null)
 const testTools = ref<HTMLDivElement | null>(null)
+const reload = () => {
+  // location.reload()
+  // @ts-ignore
+  window.api.reloadSilently()
+}
 
 function hideNavAndTestTool(): void {
   if (navDiv.value) {
@@ -33,15 +38,52 @@ function showNavAndTestTool(): void {
   }
 }
 
-onMounted(() => {
-  // @ts-ignore
-  window.api.onFullScreenStateChange((fullscreen: boolean) => {
-    if (fullscreen) {
-      hideNavAndTestTool()
-    } else {
+async function keydownListener(e: KeyboardEvent) {
+  e.preventDefault()
+
+  if (e.key === 'F11') {
+    // @ts-ignore
+    const flag = await window.api.isFullScreen()
+    if (flag) {
       showNavAndTestTool()
+      // @ts-ignore
+      await window.api.setFullScreen(false)
+      reload()
+    } else {
+      hideNavAndTestTool()
+      // @ts-ignore
+      await window.api.setFullScreen(true)
+      reload()
     }
-  })
+  }
+}
+
+// const controller = new AbortController()
+// const signal = controller.signal
+
+onMounted(async () => {
+  // @ts-ignore
+  // window.api.onFullScreenStateChange((fullscreen: boolean) => {
+  //   if (fullscreen) {
+  //     hideNavAndTestTool()
+  //   } else {
+  //     showNavAndTestTool()
+  //   }
+  // })
+  window.addEventListener('keydown', keydownListener)
+  // window.addEventListener('keydown', keydownListener, { signal })
+
+  // @ts-ignore
+  const flag = await window.api.isFullScreen()
+  if (flag) {
+    hideNavAndTestTool()
+  } else {
+    showNavAndTestTool()
+  }
+})
+
+onBeforeUnmount(() => {
+  // controller.abort()
 })
 </script>
 

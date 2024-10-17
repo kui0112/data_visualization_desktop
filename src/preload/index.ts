@@ -5,6 +5,15 @@ import { electronAPI } from '@electron-toolkit/preload'
 const api = {
   onFullScreenStateChange: (callback: (a: boolean) => void) => {
     ipcRenderer.on('fullscreen-state-change', (_, value: boolean) => callback(value))
+  },
+  isFullScreen: () => {
+    return ipcRenderer.invoke('isFullScreen')
+  },
+  setFullScreen: (flag: boolean) => {
+    return ipcRenderer.invoke('setFullScreen', flag)
+  },
+  reloadSilently: () => {
+    return ipcRenderer.invoke('reloadSilently')
   }
 }
 
