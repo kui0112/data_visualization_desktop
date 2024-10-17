@@ -33,8 +33,8 @@ const onMessage = async (e: MessageEvent) => {
 
       objectNameLabelContainer.value.style.display = 'flex'
 
-      objectNameLabelName.value.innerText = `物品名: ${object_name}`
-      objectNameLabelProb.value.innerText = `置信度: ${prob.toFixed(2)}`
+      objectNameLabelName.value.innerHTML = `物品名: ${object_name}`
+      objectNameLabelProb.value.innerHTML = `置信度: ${(prob * 100).toFixed(2)}%`
     }
   } else {
     if (objectNameLabelContainer.value) {
@@ -140,7 +140,7 @@ onBeforeUnmount(() => {
       text-align: center;
       padding: 10px;
       border-radius: 5px;
-      overflow-wrap: break-word;
+      //overflow-wrap: break-word;
     }
   }
 }
