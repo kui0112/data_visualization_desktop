@@ -34,7 +34,7 @@ const onMessage = async (e: MessageEvent) => {
       objectNameLabelContainer.value.style.display = 'flex'
 
       objectNameLabelName.value.innerText = `物品名: ${object_name}`
-      objectNameLabelProb.value.innerText = `置信度: ${prob}`
+      objectNameLabelProb.value.innerText = `置信度: ${prob.toFixed(2)}`
     }
   } else {
     if (objectNameLabelContainer.value) {

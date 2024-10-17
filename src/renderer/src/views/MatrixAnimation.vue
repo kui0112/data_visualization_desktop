@@ -57,18 +57,23 @@ onMounted(async () => {
       ws.onerror = () => location.reload()
     }
   })
-
   const res1 = await service.currentObjectName()
-  if (res1.content) {
-    currentObjectName = res1.content
-    mask.style.display = 'none'
-    const res2 = await service.vectors(currentObjectName)
-    animation.updateVectors(res2.content)
-    animation.start()
-  } else {
-    currentObjectName = ''
-    mask.style.display = 'block'
+  currentObjectName = res1.content
+  if (!currentObjectName) {
+    console.log('error: null result from http.')
+    return
   }
+
+  if (currentObjectName == 'nothing') {
+    mask.style.display = 'block'
+    return
+  } else {
+    mask.style.display = 'none'
+  }
+
+  const res2 = await service.vectors(currentObjectName)
+  animation.updateVectors(res2.content)
+  animation.start()
 })
 
 onBeforeUnmount(() => {
