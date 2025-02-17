@@ -1,20 +1,22 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import electron, { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
 const api = {
-  onFullScreenStateChange: (callback: (a: boolean) => void) => {
-    ipcRenderer.on('fullscreen-state-change', (_, value: boolean) => callback(value))
+  isFullScreen: () => ipcRenderer.invoke('isFullScreen'),
+  setFullScreen: (flag: boolean) => ipcRenderer.invoke('setFullScreen', flag),
+  reloadSilently: () => ipcRenderer.invoke('reloadSilently'),
+  openDevTools: () => ipcRenderer.invoke('openDevTools'),
+  closeDevTools: () => ipcRenderer.invoke('closeDevTools'),
+  appConfig: () => ipcRenderer.invoke('appConfig'),
+  receiveMessage: (channel: string, callback: Function) => {
+    electron.ipcRenderer.on(channel, (_, data) => callback(data))
   },
-  isFullScreen: () => {
-    return ipcRenderer.invoke('isFullScreen')
+  sendMessage: (channel: string, data: string) => {
+    ipcRenderer.send(channel, data)
   },
-  setFullScreen: (flag: boolean) => {
-    return ipcRenderer.invoke('setFullScreen', flag)
-  },
-  reloadSilently: () => {
-    return ipcRenderer.invoke('reloadSilently')
-  }
+  openNav: () => ipcRenderer.invoke('openNav'),
+  closeNav: () => ipcRenderer.invoke('closeNav')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

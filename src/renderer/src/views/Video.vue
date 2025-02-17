@@ -2,32 +2,69 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { delay, Segment } from '../scripts/Utils'
 import { apiAddress } from '../scripts/Service'
+import { appConfig } from '../scripts/GlobalConfig'
+
+const cfg = appConfig()
+
+const zh = cfg.subtitleLanguage.indexOf('zh') !== -1
+const en = cfg.subtitleLanguage.indexOf('en') !== -1
 
 let video: HTMLVideoElement | null = null
 let preloadVideo: HTMLVideoElement | null = null
 
 const subtitleDiv = ref<HTMLDivElement | null>(null)
+const subtitleEnDiv = ref<HTMLDivElement | null>(null)
 const audio = ref<HTMLAudioElement | null>(null)
 
 let animationId: number = Date.now()
 let audioAvailable = false
 let segmentId: number | null = null
 
-
-async function subtitleAnimation(subtitle: string, maxWidth: number, animInterval: number) {
+async function subtitleAnimation(subtitle: string, subtitleEn: string, maxWidth: number, animInterval: number) {
   const currentAnimationId = animationId
-  if (!subtitle || subtitle.length === 0) {
+  if (!subtitle || subtitle.length === 0 || (!zh && !en)) {
     return
   }
+  if (zh) {
+    subtitleDiv.value.style.maxWidth = `${maxWidth}px`
+  } else {
+    subtitleDiv.value.style.display = 'none'
+  }
+  if (en) {
+    subtitleEnDiv.value.style.maxWidth = `${maxWidth}px`
+  } else {
+    subtitleEnDiv.value.style.display = 'none'
+  }
 
-  subtitleDiv.value.style.maxWidth = `${maxWidth}px`
+  subtitleDiv.value.style.bottom = '50px'
+  subtitleEnDiv.value.style.bottom = `50px`
+
+  if (zh && en) {
+    subtitleEnDiv.value.style.bottom = `130.391px`
+  }
 
   for (let i = 0; i < subtitle.length; i++) {
     if (currentAnimationId !== animationId) return
 
-    if (subtitleDiv?.value) {
-      subtitleDiv.value.textContent = subtitle.slice(0, i + 1)
+    const sectionZH = subtitle.slice(0, i + 1)
+    if (subtitleDiv?.value && zh) {
+      subtitleDiv.value.textContent = sectionZH
     }
+    if (subtitleEnDiv?.value && en) {
+      let rightBoundary = Math.ceil((i + 1) * (subtitleEn.length / subtitle.length))
+      if (rightBoundary > subtitleEn.length) {
+        rightBoundary = subtitleEn.length
+      }
+      subtitleEnDiv.value.textContent = subtitleEn.slice(0, rightBoundary)
+    }
+
+    // 根据zh行数调整中英文字幕间距
+    // if (zh && en) {
+      // subtitleDiv.value.style.bottom = '50px'
+      // 50 + 10 + 18.391 + 10 + 2 + 10
+      // console.log(subtitleDiv.value.off)
+      // subtitleEnDiv.value.style.bottom = `${100 + Math.floor((sectionZH.length - 1) / 34) * 18.391}px`
+    // }
 
     if (audioAvailable) {
       audioAvailable = false
@@ -45,8 +82,11 @@ async function subtitleAnimation(subtitle: string, maxWidth: number, animInterva
 
 function showVideo() {
   // console.log('show video.')
-  if (subtitleDiv?.value?.style) {
+  if (subtitleDiv?.value?.style && zh) {
     subtitleDiv.value.style.display = 'block'
+  }
+  if (subtitleEnDiv?.value?.style && en) {
+    subtitleEnDiv.value.style.display = 'block'
   }
   if (video?.style) {
     video.style.display = 'block'
@@ -129,7 +169,7 @@ async function update(seg: Segment) {
   showVideo()
 
   animationId = Date.now()
-  await subtitleAnimation(seg.subtitle, video.clientWidth, seg.animInterval)
+  await subtitleAnimation(seg.subtitle, seg.subtitleEn, video.clientWidth, seg.animInterval)
 }
 
 const audioOnCanPlayThrough = () => {
@@ -209,6 +249,7 @@ defineExpose({ update, stop, setPreloadVideo })
     <!--    <img ref="image" alt="image" class="image" src=""/>-->
     <video id="video" class="video" autoplay loop muted playsinline></video>
     <video id="preloadVideo" class="video" autoplay loop muted playsinline></video>
+    <div ref="subtitleEnDiv" class="subtitleEn"></div>
     <div ref="subtitleDiv" class="subtitle"></div>
     <audio ref="audio"></audio>
   </div>
@@ -244,7 +285,24 @@ defineExpose({ update, stop, setPreloadVideo })
   .subtitle {
     display: block;
     position: absolute;
-    bottom: 3%;
+    bottom: 50px;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.5);
+
+    font-size: 16px;
+    font-weight: normal;
+    font-family: Alibaba-Regular, sans-serif;
+
+    text-align: center;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-wrap: break-word;
+  }
+
+  .subtitleEn {
+    display: block;
+    position: absolute;
+    bottom: 100.391px;
     color: white;
     background-color: rgba(0, 0, 0, 0.5);
 

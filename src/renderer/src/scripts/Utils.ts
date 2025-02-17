@@ -15,6 +15,7 @@ export interface Segment {
   image: string
   video: string
   subtitle: string
+  subtitleEn: string
   aliveDuration: number
   animInterval: number
 }

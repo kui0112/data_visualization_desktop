@@ -1,41 +1,50 @@
 <script setup lang="ts">
-import Nav from './components/Nav.vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import TestTools from './components/TestTools.vue'
+import { eventbus } from './scripts/EventBus'
+import { useRouter } from 'vue-router'
+import { setAppConfig } from './scripts/GlobalConfig'
 
-const navDiv = ref<HTMLDivElement | null>(null)
+const router = useRouter()
+
 const routerViewDiv = ref<HTMLDivElement | null>(null)
-const testTools = ref<HTMLDivElement | null>(null)
+
 const reload = () => {
-  // location.reload()
   // @ts-ignore
   window.api.reloadSilently()
 }
 
-function hideNavAndTestTool(): void {
-  if (navDiv.value) {
-    navDiv.value.style.display = 'none'
-  }
-  if (routerViewDiv.value) {
-    routerViewDiv.value.style.width = '100%'
-    routerViewDiv.value.style.height = '100%'
-  }
-  if (testTools.value) {
-    testTools.value.style.display = 'none'
-  }
+const openNav = () => {
+  console.log('openNav')
+  // @ts-ignore
+  window.api.openNav()
 }
 
-function showNavAndTestTool(): void {
-  if (navDiv.value) {
-    navDiv.value.style.display = 'flex'
-  }
-  if (routerViewDiv.value) {
-    routerViewDiv.value.style.width = '80%'
-    routerViewDiv.value.style.height = '90%'
-  }
-  if (testTools.value) {
-    testTools.value.style.display = 'block'
-  }
+const closeNav = () => {
+  console.log('closeNav')
+  // @ts-ignore
+  window.api.closeNav()
+}
+
+const openDevTools = () => {
+  // @ts-ignore
+  window.api.openDevTools()
+}
+
+const closeDevTools = () => {
+  // @ts-ignore
+  window.api.closeDevTools()
+}
+
+function enterFullScreen(): void {
+  closeNav()
+  // @ts-ignore
+  window.api.setFullScreen(true)
+}
+
+function exitFullScreen(): void {
+  openNav()
+  // @ts-ignore
+  window.api.setFullScreen(false)
 }
 
 async function keydownListener(e: KeyboardEvent) {
@@ -44,79 +53,62 @@ async function keydownListener(e: KeyboardEvent) {
   if (e.key === 'F11') {
     // @ts-ignore
     const flag = await window.api.isFullScreen()
+    // 如果当前处于全屏状态，则按下F11表示要退出全屏状态，否则表示要进入全屏状态
     if (flag) {
-      showNavAndTestTool()
-      // @ts-ignore
-      await window.api.setFullScreen(false)
-      reload()
+      exitFullScreen()
     } else {
-      hideNavAndTestTool()
-      // @ts-ignore
-      await window.api.setFullScreen(true)
-      reload()
+      enterFullScreen()
     }
+    reload()
   }
 }
 
-// const controller = new AbortController()
-// const signal = controller.signal
-
 onMounted(async () => {
+  // 读取全局应用配置
   // @ts-ignore
-  // window.api.onFullScreenStateChange((fullscreen: boolean) => {
-  //   if (fullscreen) {
-  //     hideNavAndTestTool()
-  //   } else {
-  //     showNavAndTestTool()
-  //   }
-  // })
+  const cfg = await window.api.appConfig()
+  setAppConfig(cfg)
+
   window.addEventListener('keydown', keydownListener)
-  // window.addEventListener('keydown', keydownListener, { signal })
 
   // @ts-ignore
   const flag = await window.api.isFullScreen()
   if (flag) {
-    hideNavAndTestTool()
+    enterFullScreen()
   } else {
-    showNavAndTestTool()
+    exitFullScreen()
   }
+
+  // @ts-ignore
+  window.api.receiveMessage('switch', (data: string) => {
+    router.push({ name: data })
+  })
+
+  eventbus.on('openDevTools', openDevTools)
+  eventbus.on('closeDevTools', closeDevTools)
+  eventbus.on('openNav', openNav)
+  eventbus.on('closeNav', closeNav)
 })
 
 onBeforeUnmount(() => {
-  // controller.abort()
+  eventbus.off('openDevTools', openDevTools)
+  eventbus.off('closeDevTools', closeDevTools)
+  eventbus.off('openNav', openNav)
+  eventbus.off('closeNav', closeNav)
 })
 </script>
 
 <template>
-  <div ref="navDiv" class="nav">
-    <Nav></Nav>
-  </div>
   <div ref="routerViewDiv" class="router-view">
     <router-view></router-view>
-  </div>
-  <div ref="testTools" class="test-tools">
-    <TestTools></TestTools>
   </div>
 </template>
 
 <style lang="less" scoped>
-.nav {
-  width: 100%;
-  height: 5%;
-  display: flex;
-  align-items: center;
-}
 
 .router-view {
-  width: 80%;
-  height: 90%;
-  float: left;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-}
-
-.test-tools {
-  width: 20%;
-  height: 95%;
-  float: right;
 }
 </style>

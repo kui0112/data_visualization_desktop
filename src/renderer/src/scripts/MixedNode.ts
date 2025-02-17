@@ -32,12 +32,15 @@ export class MixedNode extends BaseNode {
   public lastKeyOpacity: number = 0
   public lastImageOpacity: number = 0
 
+  public isEN = false
+  public isZH = false
+  public isIMAGE = false
+
   public emergeStep: number = 0.01
   public disappearStep: number = 0.02
 
   public initialized: boolean = false
   public disappear: boolean = false
-  public imageMode: boolean = false
   public emergeEnd: boolean = false
   public leafOpacityIncreaseFlag: number = 1
   public maxLevelThisGraph: number = 0
@@ -57,49 +60,26 @@ export class MixedNode extends BaseNode {
     options.style.opacity = 0
     options.style.labelOpacity = 0
 
-    const arr = this.context.model.getNodeData([this.id])
-    const data = arr[0]
+    const nodeData = this.getNodeData()
+
+    this.isZH = nodeData.data.isZH as boolean
+    this.isEN = nodeData.data.isEN as boolean
+    this.isIMAGE = nodeData.data.isIMAGE as boolean
 
     this.keyOpacity = 0
     this.imageOpacity = 0
     this.lastKeyOpacity = 0
     this.lastImageOpacity = 0
     this.disappear = false
-    this.imageMode = false
     this.emergeEnd = false
-    this.level = data.data.level as number
+    this.level = nodeData.data.level as number
     this.initialized = false
     this.currentEmergeLevel = 0
     this.currentDisappearLevel = 0
     this.maxLevelThisGraph = (this.context.graph as NewGraph).maxLevel
-    this.isLeaf = data.data.type === 'leaf'
+    this.isLeaf = nodeData.data.type === 'leaf'
     this.leafOpacityUpdate = true
 
-    this.context.graph.on('NewGraph:Initialize', () => {
-      this.keyOpacity = 0
-      this.imageOpacity = 0
-      this.disappear = false
-      this.imageMode = false
-      this.emergeEnd = false
-    })
-    this.context.graph.on('NewGraph:EnterTextState', () => {
-      if (this.disappear) return
-      if (this.imageMode) {
-        this.imageOpacity = 0
-        this.keyOpacity = 0
-        this.emergeEnd = false
-      }
-      this.imageMode = false
-    })
-    this.context.graph.on('NewGraph:EnterImageState', () => {
-      if (this.disappear) return
-      if (!this.imageMode) {
-        this.imageOpacity = 0
-        this.keyOpacity = 0
-        this.emergeEnd = false
-      }
-      this.imageMode = true
-    })
     this.context.graph.on('NewGraph:Disappear', () => {
       this.disappear = true
     })
@@ -128,6 +108,10 @@ export class MixedNode extends BaseNode {
     }
   }
 
+  protected getNodeData() {
+    return this.context.model.getNodeData([this.id])[0]
+  }
+
   protected drawKeyShape(attributes: Required<MixedNodeStyleProps>, container: Group) {
     return this.upsert('key', GCircle, this.getKeyStyle(attributes), container)
   }
@@ -140,7 +124,7 @@ export class MixedNode extends BaseNode {
 
     let opacity = 0
     let r = 0
-    if (this.imageMode) {
+    if (this.isIMAGE) {
       opacity = 0
       r = 16
     } else {
@@ -177,7 +161,7 @@ export class MixedNode extends BaseNode {
     }
 
     let opacity = 0
-    if (!this.imageMode) {
+    if (!this.isIMAGE) {
       opacity = 0
     } else {
       opacity = this.imageOpacity
@@ -208,7 +192,7 @@ export class MixedNode extends BaseNode {
     }
 
     let opacity = 0
-    if (this.imageMode || typeof this.initialized === 'undefined') {
+    if (this.isIMAGE || typeof this.initialized === 'undefined') {
       opacity = 0
     } else {
       opacity = this.keyOpacity
@@ -236,7 +220,7 @@ export class MixedNode extends BaseNode {
 
   public updateOpacity() {
     // 文字模式
-    if (!this.imageMode) {
+    if (!this.isIMAGE) {
       if (this.disappear) {
         if (this.currentDisappearLevel >= this.level && this.keyOpacity > 0) {
           this.keyOpacity -= this.disappearStep
@@ -263,21 +247,17 @@ export class MixedNode extends BaseNode {
           if (this.keyOpacity < 0) {
             this.keyOpacity = 0
             this.leafOpacityUpdate = false
-            // console.log("keyOpacity = 0, leafOpacityUpdate = false")
             setTimeout(() => {
               this.leafOpacityIncreaseFlag = 1
               this.leafOpacityUpdate = true
-              // console.log("leafOpacityUpdate = true")
             }, 0.2 * 1000)
           }
           if (this.keyOpacity > 0.8) {
             this.keyOpacity = 0.8
             this.leafOpacityUpdate = false
-            // console.log("keyOpacity = 0.8, leafOpacityUpdate = false")
             setTimeout(() => {
               this.leafOpacityIncreaseFlag = -1
               this.leafOpacityUpdate = true
-              // console.log("leafOpacityUpdate = true")
             }, 5.0 * 1000)
           }
         }
@@ -285,7 +265,7 @@ export class MixedNode extends BaseNode {
     }
 
     // 图像模式
-    if (this.imageMode) {
+    if (this.isIMAGE) {
       if (this.disappear) {
         if (this.currentDisappearLevel >= this.level && this.imageOpacity > 0) {
           this.imageOpacity -= this.disappearStep
@@ -294,52 +274,24 @@ export class MixedNode extends BaseNode {
           }
         }
       } else {
-        // if (this.currentEmergeLevel >= this.level && this.imageOpacity < 0.8 && !this.emergeEnd) {
         if (this.currentEmergeLevel >= this.level && this.imageOpacity < 0.8) {
           this.imageOpacity += this.emergeStep
           if (this.imageOpacity > 0.8) {
             this.imageOpacity = 0.8
-            // if (this.level === this.maxLevelThisGraph && !this.emergeEnd) {
-            //     this.context.graph.emit("MixedNode:emergeEnd")
-            // }
           }
         }
-
-        // 叶节点循环浮现、渐隐
-        // if (this.isLeaf && this.emergeEnd) {
-        //     if (this.leafOpacityUpdate) {
-        //         this.imageOpacity += (this.emergeStep * this.leafOpacityIncreaseFlag)
-        //     }
-        //     if (this.imageOpacity < 0) {
-        //         this.imageOpacity = 0
-        //         this.leafOpacityUpdate = false
-        //         setTimeout(() => {
-        //             this.leafOpacityIncreaseFlag = 1
-        //             this.leafOpacityUpdate = true
-        //         }, 0.2 * 1000)
-        //     }
-        //     if (this.imageOpacity > 0.8) {
-        //         this.imageOpacity = 0.8
-        //         this.leafOpacityUpdate = false
-        //         setTimeout(() => {
-        //             this.leafOpacityIncreaseFlag = -1
-        //             this.leafOpacityUpdate = true
-        //         }, 0.2 * 1000)
-        //     }
-        // }
-
       }
     }
 
     if (this.disappear) {
       // 设置边的透明度
       for (const edge of this.sourceEdges) {
-        edge.style.opacity = this.imageMode ? this.imageOpacity : this.keyOpacity
+        edge.style.opacity = this.isIMAGE ? this.imageOpacity : this.keyOpacity
       }
     } else {
       // 设置边的透明度
       for (const edge of this.targetEdges) {
-        edge.style.opacity = this.imageMode ? this.imageOpacity : this.keyOpacity
+        edge.style.opacity = this.isIMAGE ? this.imageOpacity : this.keyOpacity
       }
     }
   }
@@ -358,16 +310,13 @@ export class MixedNode extends BaseNode {
     }
 
     this.updateOpacity()
-    // 1. key shape
-    if (this.lastKeyOpacity !== this.keyOpacity) {
-      this.lastKeyOpacity = this.keyOpacity
+
+    if (this.isIMAGE) {
+      this.drawKeyShape(attributes, container)
+      this.drawImageShape(attributes, container)
+    } else {
       this.drawKeyShape(attributes, container)
       this.drawLabelShape(attributes, container)
-    }
-    // 2. image
-    if (this.lastImageOpacity !== this.imageOpacity) {
-      this.lastImageOpacity = this.imageOpacity
-      this.drawImageShape(attributes, container)
     }
   }
 

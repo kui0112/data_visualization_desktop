@@ -1,15 +1,26 @@
-import { app, shell, BrowserWindow, ipcMain, session } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, Menu } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import * as path from 'node:path'
+import * as fs from 'node:fs'
+import * as ini from 'ini'
 
-function createWindow(): void {
+const defaultConfig = {
+  maxIteration: 1000000,
+  dark: false,
+  displayOrder: 'zh_en_image',
+  displayDuration: 8,
+  subtitleLanguage: 'zh_en'
+}
+
+async function createWindow(): Promise<void> {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
-    autoHideMenuBar: true,
+    autoHideMenuBar: false,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       // 自动播放无需用户交互
@@ -18,6 +29,42 @@ function createWindow(): void {
       sandbox: false
     }
   })
+
+  // 创建菜单
+  const template = [
+    {
+      label: 'Home',
+      click: () => {
+        mainWindow.webContents.send('switch', 'Home')
+      }
+    },
+    {
+      label: 'KnowledgeGraph',
+      click: () => {
+        mainWindow.webContents.send('switch', 'KnowledgeGraph')
+      }
+    },
+    {
+      label: 'VectorAnimation',
+      click: () => {
+        mainWindow.webContents.send('switch', 'VectorAnimation')
+      }
+    },
+    {
+      label: 'Pictures',
+      click: () => {
+        mainWindow.webContents.send('switch', 'Pictures')
+      }
+    },
+    {
+      label: 'CameraView',
+      click: () => {
+        mainWindow.webContents.send('switch', 'CameraView')
+      }
+    }
+  ]
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
 
   // 窗口最大化
   mainWindow.maximize()
@@ -31,18 +78,27 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-    mainWindow.webContents.openDevTools()
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
-
   // 处理权限请求，总是允许
   session.defaultSession.setPermissionRequestHandler((_, __, callback) => {
     callback(true)
+  })
+
+  // 读取配置文件
+  const cwd = process.cwd()
+  const file = is.dev ? path.join(cwd, '/config.ini') : path.join(cwd, '/resources/config.ini')
+  const contents = await fs.promises.readFile(file, 'utf-8')
+  const cfg = {}
+  const obj = ini.parse(contents)
+  Object.entries(obj).forEach(([_, value]) => {
+    Object.assign(cfg, value)
+  })
+
+  // 处理进程间通信
+  ipcMain.handle('appConfig', () => {
+    return {
+      ...defaultConfig,
+      ...cfg
+    }
   })
 
   ipcMain.handle('isFullScreen', () => {
@@ -54,7 +110,28 @@ function createWindow(): void {
   ipcMain.handle('reloadSilently', () => {
     mainWindow.webContents.reloadIgnoringCache()
   })
+  ipcMain.handle('openDevTools', () => {
+    mainWindow.webContents.openDevTools({ mode: 'undocked' })
+  })
+  ipcMain.handle('closeDevTools', () => {
+    mainWindow.webContents.closeDevTools()
+  })
+  ipcMain.handle('openNav', () => {
+    mainWindow.setMenuBarVisibility(true)
+  })
+  ipcMain.handle('closeNav', () => {
+    mainWindow.setMenuBarVisibility(false)
+  })
+
+  // HMR for renderer base on electron-vite cli.
+  // Load the remote URL for development or the local html file for production.
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    await mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  } else {
+    await mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
 }
+
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

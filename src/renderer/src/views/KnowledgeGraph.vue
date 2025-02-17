@@ -6,12 +6,12 @@ import { PresetMixedNodeOptions } from '../scripts/PresetNodeOptions'
 import { PresetEdgeOptions } from '../scripts/PresetEdgeOptions'
 import { PresetForceLayoutOptions } from '../scripts/PresetLayoutOptions'
 import { NewGraph } from '../scripts/NewGraph'
-import * as settings from '../scripts/GlobalSettings'
-import { randomChoice } from '../scripts/Utils'
+import { appConfig } from '../scripts/GlobalConfig'
 import Mask from '../components/Mask.vue'
 
+const cfg = appConfig()
+
 const reload = () => {
-  // location.reload()
   // @ts-ignore
   window.api.reloadSilently()
 }
@@ -22,13 +22,14 @@ let ws: WebSocket | null = null
 let currentObjectName: string = 'nothing'
 let mask: HTMLElement | null = null
 
+// websocket message
 const onMessage = async (e: MessageEvent) => {
   if (router.currentRoute.value.name !== 'KnowledgeGraph') {
     return
   }
 
   const data = JSON.parse(e.data)
-  const object_name = data.object_name
+  const object_name = data?.object_name
   if (!object_name) {
     console.log('error: null result from websocket.')
     return
@@ -59,18 +60,16 @@ onMounted(async () => {
         // } catch (err) {
         //   console.log(err)
         // }
-
         reload()
       }
       ws.onclose = async () => {
         // ws = await service.connect()
-
         reload()
       }
     }
   })
   const res1 = await service.currentObjectName()
-  currentObjectName = res1.content
+  currentObjectName = res1?.content
   if (!currentObjectName) {
     console.log('error: null result from http.')
     return
@@ -82,13 +81,16 @@ onMounted(async () => {
     mask.style.display = 'none'
   }
 
-  const res2 = await service.knowledgeGraph(currentObjectName)
-  const content = res2.content
-  if (content?.data && content?.images?.length > 0) {
-    const images: Array<string> = []
-    for (const image of content.images) {
-      images.push(service.apiAddress(image))
-    }
+  const res2 = await service.knowledgeGraphEx(currentObjectName)
+  const content = res2?.content
+
+  const images = new Map(Object.entries(content.data.image))
+  for (const [key, value] of images) {
+    images.set(key, service.apiAddress(value as string))
+  }
+
+  if (content?.data) {
+    let currentDisplay = parseInt(localStorage.getItem('knowledgeGraph:current_display') || '0', 10)
 
     knowledgeGraph = new NewGraph({
       // 指定容器元素
@@ -100,11 +102,23 @@ onMounted(async () => {
       // 启用全局动画
       animation: false,
       // 背景颜色
-      background: settings.dark ? '#000000' : '#ffffff',
-      // 动态图片数据源
-      dynamicImageSource: () => randomChoice(images),
-      // 数据
-      data: content.data,
+      background: cfg.dark ? '#000000' : '#ffffff',
+
+      // 图数据
+      data: content.data.shape,
+      // 中文
+      data_zh: new Map(Object.entries(content.data.zh)),
+      // 英文
+      data_en: new Map(Object.entries(content.data.en)),
+      // 图片
+      data_image: images,
+      // 节点类型按层级的分布顺序
+      display_order: cfg.displayOrder,
+      // 持续时间
+      display_duration: cfg.displayDuration,
+      // 当前播放内容
+      current_display: currentDisplay,
+
       // 节点配置
       node: PresetMixedNodeOptions,
       // 边配置
@@ -114,8 +128,9 @@ onMounted(async () => {
       // 交互行为配置
       behaviors: []
     })
-
     await Promise.race([knowledgeGraph.render(), knowledgeGraph.animation()])
+
+    localStorage.setItem('knowledgeGraph:current_display', (currentDisplay + 1).toString())
     reload()
   }
 })

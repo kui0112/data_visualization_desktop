@@ -6,6 +6,7 @@ import { apiAddress } from '../scripts/Service'
 const image = ref<HTMLImageElement | null>(null)
 const video = ref<HTMLVideoElement | null>(null)
 const subtitleDiv = ref<HTMLDivElement | null>(null)
+const subtitleEnDiv = ref<HTMLDivElement | null>(null)
 const spinningDiv = ref<HTMLDivElement | null>(null)
 const audio = ref<HTMLAudioElement | null>(null)
 
@@ -17,22 +18,30 @@ let videoAvailable = false
 let segmentId: number | null = null
 let segment: Segment | null = null
 
-function subtitleNoAnimation(subtitle: string, maxWidth: number) {
+function subtitleNoAnimation(subtitle: string, subtitleEn: string, maxWidth: number) {
   if (!subtitle || subtitle.length === 0) {
     return
   }
 
   subtitleDiv.value.style.maxWidth = `${maxWidth}px`
   subtitleDiv.value.textContent = subtitle
+
+  subtitleEnDiv.value.style.maxWidth = `${maxWidth}px`
+  subtitleEnDiv.value.textContent = subtitleEn
 }
 
-async function subtitleAnimation(subtitle: string, maxWidth: number, animInterval: number) {
+async function subtitleAnimation(subtitle: string, subtitleEn: string, maxWidth: number, animInterval: number) {
   const currentAnimationId = animationId
   if (!subtitle || subtitle.length === 0) {
     return
   }
+  // console.log(subtitle)
+  // console.log(subtitleEn)
 
   subtitleDiv.value.style.maxWidth = `${maxWidth}px`
+  subtitleEnDiv.value.style.maxWidth = `${maxWidth}px`
+
+  subtitleEnDiv.value.textContent = subtitleEn
 
   for (let i = 0; i < subtitle.length; i++) {
     if (currentAnimationId !== animationId) return
@@ -59,6 +68,7 @@ function showSpinning() {
   spinningDiv.value.style.display = 'block'
 
   subtitleDiv.value.style.display = 'none'
+  subtitleEnDiv.value.style.display = 'none'
   image.value.style.display = 'none'
   video.value.style.display = 'none'
 }
@@ -72,6 +82,7 @@ function showImage() {
   }
   if (subtitleDiv?.value?.style) {
     subtitleDiv.value.style.display = 'block'
+    subtitleEnDiv.value.style.display = 'block'
   }
   if (image?.value?.style) {
     image.value.style.display = 'block'
@@ -87,6 +98,9 @@ function showVideo() {
   }
   if (subtitleDiv?.value?.style) {
     subtitleDiv.value.style.display = 'block'
+  }
+  if (subtitleEnDiv?.value?.style) {
+    subtitleEnDiv.value.style.display = 'block'
   }
   if (video?.value?.style) {
     video.value.style.display = 'block'
@@ -144,9 +158,9 @@ async function update(seg: Segment) {
 
   animationId = Date.now()
   if (subtitleMode === 'typewriter') {
-    await subtitleAnimation(seg.subtitle, maxWidth, seg.animInterval)
+    await subtitleAnimation(seg.subtitle, seg.subtitleEn, maxWidth, seg.animInterval)
   } else {
-    subtitleNoAnimation(seg.subtitle, maxWidth)
+    subtitleNoAnimation(seg.subtitle, seg.subtitleEn, maxWidth)
   }
 }
 
@@ -221,6 +235,7 @@ onBeforeUnmount(async () => {
     </div>
     <img ref="image" alt="image" class="image" src="" />
     <video ref="video" class="video" autoplay loop muted playsinline></video>
+    <div ref="subtitleEnDiv" class="subtitleEn"></div>
     <div ref="subtitleDiv" class="subtitle"></div>
     <audio ref="audio"></audio>
   </div>
@@ -257,6 +272,23 @@ onBeforeUnmount(async () => {
     display: block;
     position: absolute;
     bottom: 3%;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.5);
+
+    font-size: 16px;
+    font-weight: normal;
+    font-family: Alibaba-Regular, sans-serif;
+
+    text-align: center;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-wrap: break-word;
+  }
+
+  .subtitleEn {
+    display: block;
+    position: absolute;
+    bottom: 10%;
     color: white;
     background-color: rgba(0, 0, 0, 0.5);
 

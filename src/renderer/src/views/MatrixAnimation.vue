@@ -14,7 +14,6 @@ let currentObjectName: string = 'nothing'
 let mask: HTMLElement | null = null
 
 const reload = () => {
-  // location.reload()
   // @ts-ignore
   window.api.reloadSilently()
 }
