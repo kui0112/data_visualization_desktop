@@ -1,5 +1,9 @@
-import electron, { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+
+ipcRenderer.on('reload', () => {
+  window.location.reload()
+})
 
 // Custom APIs for renderer
 const api = {
@@ -10,7 +14,7 @@ const api = {
   closeDevTools: () => ipcRenderer.invoke('closeDevTools'),
   appConfig: () => ipcRenderer.invoke('appConfig'),
   receiveMessage: (channel: string, callback: Function) => {
-    electron.ipcRenderer.on(channel, (_, data) => callback(data))
+    ipcRenderer.on(channel, (_, data) => callback(data))
   },
   sendMessage: (channel: string, data: string) => {
     ipcRenderer.send(channel, data)

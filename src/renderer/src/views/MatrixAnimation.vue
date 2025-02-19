@@ -4,10 +4,12 @@ import { MatrixAnimation } from '../scripts/MatrixAnimation'
 import * as service from '../scripts/Service'
 import { useRouter } from 'vue-router'
 import Mask from '../components/Mask.vue'
+import { appConfig } from '../scripts/GlobalConfig'
 
 const router = useRouter()
 const canvas = ref<HTMLCanvasElement | null>(null)
 const animation = new MatrixAnimation()
+const config = appConfig()
 
 let ws: WebSocket | null = null
 let currentObjectName: string = 'nothing'
@@ -52,7 +54,7 @@ const onMessage = async (e: MessageEvent) => {
 onMounted(async () => {
   setInterval(() => {
     reload()
-  }, 1000 * 60 * 3)
+  }, config.vectorDisplayDuration * 1000)
 
   mask = document.getElementById('matrixAnimationMask')
   animation.initialize(canvas.value)

@@ -12,6 +12,9 @@ interface GlobalConfig {
   displayOrder: string
   displayDuration: number
   subtitleLanguage: string
+  vectorDisplayDuration: number
+  pictureDisplayDuration: number
+  pictureSubtitleAnimInterval: number
 }
 
 const config = ref<GlobalConfig>()

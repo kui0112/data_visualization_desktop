@@ -11,7 +11,10 @@ const defaultConfig = {
   dark: false,
   displayOrder: 'zh_en_image',
   displayDuration: 8,
-  subtitleLanguage: 'zh_en'
+  subtitleLanguage: 'zh_en',
+  vectorDisplayDuration: 8,
+  pictureDisplayDuration: 8,
+  pictureSubtitleAnimInterval: 0.25
 }
 
 async function createWindow(): Promise<void> {
@@ -29,6 +32,14 @@ async function createWindow(): Promise<void> {
       sandbox: false
     }
   })
+
+  const reload = () => {
+    // const bounds = mainWindow.getBounds()
+    // mainWindow.webContents.reload()
+    mainWindow.webContents.reloadIgnoringCache()
+    // mainWindow.setBounds(bounds)
+    // mainWindow.webContents.send('reload')
+  }
 
   // 创建菜单
   const template = [
@@ -60,6 +71,12 @@ async function createWindow(): Promise<void> {
       label: 'CameraView',
       click: () => {
         mainWindow.webContents.send('switch', 'CameraView')
+      }
+    },
+    {
+      label: 'Reload',
+      click: () => {
+        reload()
       }
     }
   ]
@@ -108,7 +125,7 @@ async function createWindow(): Promise<void> {
     mainWindow.setFullScreen(flag)
   })
   ipcMain.handle('reloadSilently', () => {
-    mainWindow.webContents.reloadIgnoringCache()
+    reload()
   })
   ipcMain.handle('openDevTools', () => {
     mainWindow.webContents.openDevTools({ mode: 'undocked' })

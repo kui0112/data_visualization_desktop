@@ -2,9 +2,10 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import * as service from '../scripts/Service'
 import { useRouter } from 'vue-router'
-import { delay, Segment, clamp } from '../scripts/Utils'
+import { delay, Segment } from '../scripts/Utils'
 import Video from './Video.vue'
 import Mask from '../components/Mask.vue'
+import { appConfig } from '../scripts/GlobalConfig'
 
 const router = useRouter()
 const container = ref<HTMLDivElement | null>(null)
@@ -14,6 +15,8 @@ let ws: WebSocket | null = null
 let currentObjectName: string = 'nothing'
 let animationLoop: AnimationLoop | null = null
 let mask: HTMLElement | null = null
+
+const config = appConfig()
 
 const reload = () => {
   // @ts-ignore
@@ -76,30 +79,33 @@ function setSegments(array: Array<Segment>) {
   for (const seg of array) {
     if (!seg.video) continue
 
-    const subtitle = seg.subtitle
-    let stayTime = 0
+    // const subtitle = seg.subtitle
+    // let stayTime = 0
+    //
+    // const lineCount = Math.floor(subtitle.length / 27)
+    // switch (lineCount) {
+    //   case 0:
+    //     stayTime = 5
+    //     break
+    //   case 1:
+    //     stayTime = 6
+    //     break
+    //   case 2:
+    //     stayTime = 7
+    //     break
+    //   case 3:
+    //     stayTime = 7
+    //     break
+    //   default:
+    //     stayTime = 7
+    //     break
+    // }
+    // const interval = clamp(4 / subtitle.length, 0.2, 0.25)
+    // seg.aliveDuration = interval * subtitle.length + stayTime
+    // seg.animInterval = interval
 
-    const lineCount = Math.floor(subtitle.length / 27)
-    switch (lineCount) {
-      case 0:
-        stayTime = 5
-        break
-      case 1:
-        stayTime = 6
-        break
-      case 2:
-        stayTime = 7
-        break
-      case 3:
-        stayTime = 7
-        break
-      default:
-        stayTime = 7
-        break
-    }
-    const interval = clamp(4 / subtitle.length, 0.2, 0.25)
-    seg.aliveDuration = interval * subtitle.length + stayTime
-    seg.animInterval = interval
+    seg.aliveDuration = config.pictureDisplayDuration
+    seg.animInterval = config.pictureSubtitleAnimInterval
 
     filteredArray.push(seg)
   }
