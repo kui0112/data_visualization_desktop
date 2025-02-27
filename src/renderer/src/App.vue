@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { eventbus } from './scripts/EventBus'
+import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { delay, eventbus, reload } from './scripts/Utils'
 import { useRouter } from 'vue-router'
-import { setAppConfig } from './scripts/GlobalConfig'
+import { appConfig, setAppConfig } from './scripts/GlobalConfig'
+import { wsAddress } from './scripts/Service'
 
 const router = useRouter()
-
 const routerViewDiv = ref<HTMLDivElement | null>(null)
 
-const reload = () => {
-  // @ts-ignore
-  window.api.reloadSilently()
-}
+const ws = shallowRef<WebSocket | null>(null)
 
 const openNav = () => {
   console.log('openNav')
@@ -63,11 +60,26 @@ async function keydownListener(e: KeyboardEvent) {
   }
 }
 
+const onMessage = async (e: MessageEvent) => {
+  ws.value.send('1')
+
+  const data = JSON.parse(e.data)
+  const objectName = data.object_name
+  const prob = data.prob
+
+  eventbus.emit('objectNameUpdate', {
+    objectName: objectName,
+    prob: prob
+  })
+}
+
 onMounted(async () => {
   // 读取全局应用配置
   // @ts-ignore
   const cfg = await window.api.appConfig()
   setAppConfig(cfg)
+
+  console.log(appConfig())
 
   window.addEventListener('keydown', keydownListener)
 
@@ -88,7 +100,41 @@ onMounted(async () => {
   eventbus.on('closeDevTools', closeDevTools)
   eventbus.on('openNav', openNav)
   eventbus.on('closeNav', closeNav)
+
+  // 连接websocket
+  connect()
 })
+
+const connect = () => {
+  ws.value = new WebSocket(wsAddress('/ws'))
+  console.log('ws connect connecting...')
+
+  ws.value.onopen = () => {
+    console.log('ws connected.')
+  }
+  ws.value.onmessage = onMessage
+  ws.value.onerror = (e) => {
+    console.log('ws error, reconnecting.')
+    console.log(e)
+    ws.value = null
+    reconnect()
+  }
+  ws.value.onclose = () => {
+    console.log('ws closed, reconnecting.')
+    ws.value = null
+    reconnect()
+  }
+}
+
+const reconnect = async () => {
+  while (ws.value === null || ws.value.readyState !== WebSocket.OPEN) {
+    if (ws.value === null) {
+      connect()
+    }
+    // 每5秒重试一次
+    await delay(5)
+  }
+}
 
 onBeforeUnmount(() => {
   eventbus.off('openDevTools', openDevTools)

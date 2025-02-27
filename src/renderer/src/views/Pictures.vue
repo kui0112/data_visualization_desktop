@@ -2,26 +2,20 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import * as service from '../scripts/Service'
 import { useRouter } from 'vue-router'
-import { delay, Segment } from '../scripts/Utils'
+import { delay, eventbus, reload, Segment } from '../scripts/Utils'
 import Video from './Video.vue'
 import Mask from '../components/Mask.vue'
 import { appConfig } from '../scripts/GlobalConfig'
+
+const cfg = appConfig()
 
 const router = useRouter()
 const container = ref<HTMLDivElement | null>(null)
 const picture = ref<any>(null)
 
-let ws: WebSocket | null = null
 let currentObjectName: string = 'nothing'
 let animationLoop: AnimationLoop | null = null
 let mask: HTMLElement | null = null
-
-const config = appConfig()
-
-const reload = () => {
-  // @ts-ignore
-  window.api.reloadSilently()
-}
 
 class AnimationLoop {
   segments: Array<Segment>
@@ -37,7 +31,7 @@ class AnimationLoop {
   public async start() {
     this.animationId = Date.now()
     const currentAnimationId = this.animationId
-    // let counter = 0
+
     while (currentAnimationId === this.animationId) {
       if (!this.segments.length || this.segments.length <= this.cursor) {
         return
@@ -46,15 +40,35 @@ class AnimationLoop {
       const seg = this.segments[this.cursor]
       const preloadSeg = this.segments[(this.cursor + 1) % this.segments.length]
 
-      picture?.value?.update(seg)
+      const characterCountCondition = cfg.PicturesConfig.characterCountCondition
+
+      let stayTime = cfg.PicturesConfig.stayTime
+      let stayTimePercent = cfg.PicturesConfig.stayTimePercent
+      let animInterval = cfg.PicturesConfig.subtitleAnimInterval
+
+      if (seg.subtitle.length > characterCountCondition) {
+        stayTime = cfg.PicturesConfig.stayTime2
+        stayTimePercent = cfg.PicturesConfig.stayTime2Percent
+        animInterval = cfg.PicturesConfig.subtitleAnimInterval2
+      }
+
+      picture.value.update(seg, animInterval)
+      // 预加载下一个视频
       setTimeout(() => {
         if (currentAnimationId === this.animationId) {
-          picture?.value?.setPreloadVideo(preloadSeg)
+          picture.value.setPreloadVideo(preloadSeg)
         }
       }, 1000)
 
       this.cursor = (this.cursor + 1) % this.segments.length
-      await delay(seg.aliveDuration)
+
+      const animTime = seg.subtitle.length * animInterval
+      // 此处不能直接写表达式计算，有未知bug，会出现如下情况：
+      // stayTime(2) + animTime(7.5)*stayTimePercent(0.7) = delayTime(25.25)
+      //
+      const delayTime = eval(`${animTime} + ${stayTime} + ${animTime} * ${stayTimePercent}`)
+      console.log(`delayTime=${delayTime}`)
+      await delay(delayTime)
 
       if (this.cursor === 0) {
         reload()
@@ -78,35 +92,6 @@ function setSegments(array: Array<Segment>) {
   // 根据每个segment的字数，计算 aliveDuration 和 animInterval
   for (const seg of array) {
     if (!seg.video) continue
-
-    // const subtitle = seg.subtitle
-    // let stayTime = 0
-    //
-    // const lineCount = Math.floor(subtitle.length / 27)
-    // switch (lineCount) {
-    //   case 0:
-    //     stayTime = 5
-    //     break
-    //   case 1:
-    //     stayTime = 6
-    //     break
-    //   case 2:
-    //     stayTime = 7
-    //     break
-    //   case 3:
-    //     stayTime = 7
-    //     break
-    //   default:
-    //     stayTime = 7
-    //     break
-    // }
-    // const interval = clamp(4 / subtitle.length, 0.2, 0.25)
-    // seg.aliveDuration = interval * subtitle.length + stayTime
-    // seg.animInterval = interval
-
-    seg.aliveDuration = config.pictureDisplayDuration
-    seg.animInterval = config.pictureSubtitleAnimInterval
-
     filteredArray.push(seg)
   }
 
@@ -114,64 +99,24 @@ function setSegments(array: Array<Segment>) {
   animationLoop.start()
 }
 
-const onMessage = async (e: MessageEvent) => {
+const objectNameUpdate = async (data: any) => {
   if (router.currentRoute.value.name !== 'Pictures') {
     return
   }
-
-  const data = JSON.parse(e.data)
-  const object_name = data.object_name
-  if (!object_name) {
-    console.log('error: null result from websocket.')
-    return
-  }
-  if (object_name === currentObjectName) {
-    setTimeout(() => {
-      ws.send('1')
-    }, 1.0 + Math.random() * 0.5)
-    return
-  } else {
-    currentObjectName = object_name
-
-    if (object_name === 'nothing') {
-      mask.style.display = 'block'
-      animationLoop?.stop()
-      return
-    }
-    const res = await service.pictures(currentObjectName)
-    setSegments(res.content)
-    mask.style.display = 'none'
+  if (data.objectName !== currentObjectName) {
+    reload()
   }
 }
 
 onMounted(async () => {
+  eventbus.on('objectNameUpdate', objectNameUpdate)
   mask = document.getElementById('picturesMask')
 
-  service.connect().then((res) => {
-    ws = res
-    if (ws) {
-      ws.onopen = async () => {
-        console.log('ws opened.')
-      }
-      ws.onmessage = onMessage
-      ws.onerror = () => {
-        // try {
-        //   ws.close()
-        // } catch (err) {
-        //   console.log(err)
-        // }
-        reload()
-      }
-      ws.onclose = async () => {
-        // ws = await service.connect()
-        reload()
-      }
-    }
-  })
-  const res1 = await service.currentObjectName()
-  currentObjectName = res1.content
+  currentObjectName = (await service.currentObjectName()).content
   if (!currentObjectName) {
     console.log('error: null result from http.')
+    mask.style.display = 'block'
+    animationLoop?.stop()
     return
   }
   if (currentObjectName === 'nothing') {
@@ -181,9 +126,9 @@ onMounted(async () => {
   }
 
   mask.style.display = 'none'
-  const res2 = await service.pictures(currentObjectName)
-  if (res2.content) {
-    setSegments(res2.content)
+  const picturesData = await service.pictures(currentObjectName)
+  if (picturesData.content) {
+    setSegments(picturesData.content)
   }
 })
 
@@ -191,9 +136,7 @@ onBeforeUnmount(async () => {
   if (animationLoop) {
     animationLoop.stop()
   }
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.close()
-  }
+  eventbus.off('objectNameUpdate', objectNameUpdate)
 })
 </script>
 
@@ -213,7 +156,7 @@ onBeforeUnmount(async () => {
 .pictures {
   width: 100%;
   height: 100%;
-  display: flex;
+  display: block;
   justify-content: center;
   position: relative;
   background-color: rgba(0, 0, 0, 1);

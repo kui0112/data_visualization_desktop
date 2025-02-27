@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import * as service from '../scripts/Service'
 import { useRouter } from 'vue-router'
+import { eventbus, reload } from '../scripts/Utils'
 
 const router = useRouter()
 const videoNone = ref<HTMLVideoElement | null>(null)
@@ -9,36 +9,23 @@ const objectNameLabelName = ref<HTMLDivElement | null>(null)
 const objectNameLabelProb = ref<HTMLDivElement | null>(null)
 const objectNameLabelContainer = ref<HTMLDivElement | null>(null)
 
-let ws: WebSocket | null = null
-
-const reload = () => {
-  // location.reload()
-  // @ts-ignore
-  window.api.reloadSilently()
-}
-const onMessage = async (e: MessageEvent) => {
+const objectNameUpdate = async (data: any) => {
   if (router.currentRoute.value.name !== 'CameraView') {
     return
   }
-  const data = JSON.parse(e.data)
-  const object_name = data.object_name
-  const prob = data.prob
-  if (!object_name) {
-    console.log('error: null result from websocket.')
-    return
-  }
-  if (prob && prob > 0.5 && object_name !== 'nothing') {
-    console.log(`prob: ${prob}`)
-    if (objectNameLabelContainer.value) {
 
+  const objectName = data.objectName
+  const prob = data.prob
+
+  if (prob && prob > 0.5 && objectName !== 'nothing') {
+    if (objectNameLabelContainer.value) {
       const rect = videoNone.value.getBoundingClientRect()
-      // objectNameLabelContainer.value.style.top = rect.top + 'px'
       objectNameLabelContainer.value.style.left = rect.left + 'px'
       objectNameLabelContainer.value.style.width = rect.width + 'px'
 
       objectNameLabelContainer.value.style.display = 'flex'
 
-      objectNameLabelName.value.innerHTML = `物品名: ${object_name}`
+      objectNameLabelName.value.innerHTML = `物品名: ${objectName}`
       objectNameLabelProb.value.innerHTML = `置信度: ${(prob * 100).toFixed(2)}%`
     }
   } else {
@@ -49,33 +36,11 @@ const onMessage = async (e: MessageEvent) => {
 }
 
 onMounted(async () => {
+  eventbus.on('objectNameUpdate', objectNameUpdate)
+
   setInterval(() => {
     reload()
   }, 1000 * 60 * 3)
-
-  service.connect().then((res) => {
-    ws = res
-    if (ws) {
-      ws.onopen = async () => {
-        console.log('ws opened.')
-      }
-      ws.onmessage = onMessage
-      ws.onerror = () => {
-        // try {
-        //   ws.close()
-        // } catch (err) {
-        //   console.log(err)
-        // }
-
-        reload()
-      }
-      ws.onclose = async () => {
-        // ws = await service.connect()
-
-        reload()
-      }
-    }
-  })
 
   const devices = await navigator.mediaDevices.enumerateDevices()
   let virtualCameraDevice: MediaDeviceInfo | null = null
@@ -106,11 +71,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.close()
-  }
+  eventbus.off('objectNameUpdate', objectNameUpdate)
 })
-
 </script>
 
 <template>
@@ -150,9 +112,6 @@ onBeforeUnmount(() => {
     .objectNameLabel {
       display: block;
       height: 100%;
-
-      //color: white;
-      //background-color: rgba(0, 0, 0, 0.5);
       color: black;
 
       font-size: 30px;
@@ -162,7 +121,6 @@ onBeforeUnmount(() => {
       text-align: center;
       padding: 10px;
       border-radius: 5px;
-      //overflow-wrap: break-word;
     }
   }
 }

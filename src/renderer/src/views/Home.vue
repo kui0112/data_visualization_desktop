@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { eventbus } from '../scripts/EventBus'
+import { eventbus } from '../scripts/Utils'
 
 const openDevTools = () => {
   eventbus.emit('openDevTools')

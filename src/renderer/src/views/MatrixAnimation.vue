@@ -5,87 +5,35 @@ import * as service from '../scripts/Service'
 import { useRouter } from 'vue-router'
 import Mask from '../components/Mask.vue'
 import { appConfig } from '../scripts/GlobalConfig'
+import { eventbus, reload } from '../scripts/Utils'
 
 const router = useRouter()
 const canvas = ref<HTMLCanvasElement | null>(null)
 const animation = new MatrixAnimation()
-const config = appConfig()
+const cfg = appConfig()
 
-let ws: WebSocket | null = null
 let currentObjectName: string = 'nothing'
 let mask: HTMLElement | null = null
 
-const reload = () => {
-  // @ts-ignore
-  window.api.reloadSilently()
-}
-const onMessage = async (e: MessageEvent) => {
+const objectNameUpdate = async (data: any) => {
   if (router.currentRoute.value.name !== 'VectorAnimation') {
     return
   }
-
-  const data = JSON.parse(e.data)
-  const object_name = data.object_name
-  if (!object_name) {
-    console.log('error: null result from websocket.')
-    return
-  }
-
-  if (object_name === currentObjectName) {
-    setTimeout(() => {
-      ws.send('1')
-    }, 1.0 + Math.random() * 0.5)
-    return
-  } else {
-    if (object_name === 'nothing') {
-      currentObjectName = ''
-      mask.style.display = 'block'
-      return
-    }
-
-    currentObjectName = object_name
-    mask.style.display = 'none'
-    const res = await service.vectors(currentObjectName)
-    await animation.updateVectors(res.content)
-    await animation.start()
+  if (data.objectName !== currentObjectName) {
+    reload()
   }
 }
 
 onMounted(async () => {
-  setInterval(() => {
-    reload()
-  }, config.vectorDisplayDuration * 1000)
+  eventbus.on('objectNameUpdate', objectNameUpdate)
 
   mask = document.getElementById('matrixAnimationMask')
   animation.initialize(canvas.value)
 
-  service.connect().then((res) => {
-    ws = res
-    if (ws) {
-      ws.onopen = async (_: MessageEvent) => {
-        console.log('ws opened.')
-      }
-      ws.onmessage = onMessage
-      ws.onerror = () => {
-        // try {
-        //   ws.close()
-        // } catch (err) {
-        //   console.log(err)
-        // }
-
-        reload()
-      }
-      ws.onclose = async () => {
-        // ws = await service.connect()
-
-        reload()
-      }
-    }
-  })
-  const res1 = await service.currentObjectName()
-  currentObjectName = res1.content
+  currentObjectName = (await service.currentObjectName()).content
   if (!currentObjectName) {
     console.log('error: null result from http.')
+    mask.style.display = 'block'
     return
   }
 
@@ -96,15 +44,13 @@ onMounted(async () => {
     mask.style.display = 'none'
   }
 
-  const res2 = await service.vectors(currentObjectName)
-  animation.updateVectors(res2.content)
+  const vectorsData = await service.vectors(currentObjectName)
+  animation.updateVectors(vectorsData.content)
   animation.start()
 })
 
 onBeforeUnmount(() => {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.close()
-  }
+  eventbus.off('objectNameUpdate', objectNameUpdate)
 })
 
 </script>

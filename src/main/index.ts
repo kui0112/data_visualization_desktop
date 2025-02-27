@@ -5,17 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 import * as ini from 'ini'
-
-const defaultConfig = {
-  maxIteration: 1000000,
-  dark: false,
-  displayOrder: 'zh_en_image',
-  displayDuration: 8,
-  subtitleLanguage: 'zh_en',
-  vectorDisplayDuration: 8,
-  pictureDisplayDuration: 8,
-  pictureSubtitleAnimInterval: 0.25
-}
+import axios from 'axios'
 
 async function createWindow(): Promise<void> {
   // Create the browser window.
@@ -24,6 +14,7 @@ async function createWindow(): Promise<void> {
     height: 670,
     show: false,
     autoHideMenuBar: false,
+    // useContentSize: false,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       // 自动播放无需用户交互
@@ -34,11 +25,7 @@ async function createWindow(): Promise<void> {
   })
 
   const reload = () => {
-    // const bounds = mainWindow.getBounds()
-    // mainWindow.webContents.reload()
     mainWindow.webContents.reloadIgnoringCache()
-    // mainWindow.setBounds(bounds)
-    // mainWindow.webContents.send('reload')
   }
 
   // 创建菜单
@@ -80,6 +67,30 @@ async function createWindow(): Promise<void> {
       }
     }
   ]
+
+  const response = await axios.get('http://127.0.0.1:9999/object_names')
+  const objectNames = response.data
+
+  const updateDisplay = async (name: string) => {
+    await axios.get(`http://127.0.0.1:9999/update_display?object_name=${name}&prob=1`)
+  }
+
+  objectNames.unshift('nothing')
+  // 为 SelectObject 添加子菜单项
+  const submenu = objectNames.map((objectName: string) => ({
+    label: objectName,
+    click: () => {
+      updateDisplay(objectName)
+    }
+  }))
+
+  // 将子菜单添加到 SelectObject
+  template.push({
+    label: 'SelectObject',
+    // @ts-ignore
+    submenu: submenu
+  })
+
   const menu = Menu.buildFromTemplate(template)
   Menu.setApplicationMenu(menu)
 
@@ -104,18 +115,11 @@ async function createWindow(): Promise<void> {
   const cwd = process.cwd()
   const file = is.dev ? path.join(cwd, '/config.ini') : path.join(cwd, '/resources/config.ini')
   const contents = await fs.promises.readFile(file, 'utf-8')
-  const cfg = {}
-  const obj = ini.parse(contents)
-  Object.entries(obj).forEach(([_, value]) => {
-    Object.assign(cfg, value)
-  })
+  const cfg = ini.parse(contents)
 
   // 处理进程间通信
   ipcMain.handle('appConfig', () => {
-    return {
-      ...defaultConfig,
-      ...cfg
-    }
+    return cfg
   })
 
   ipcMain.handle('isFullScreen', () => {
@@ -139,6 +143,12 @@ async function createWindow(): Promise<void> {
   ipcMain.handle('closeNav', () => {
     mainWindow.setMenuBarVisibility(false)
   })
+
+  // 清空 localStorage
+  mainWindow.webContents.executeJavaScript('localStorage.clear();')
+    .then(() => {
+      console.log('localStorage has been cleared.')
+    })
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.

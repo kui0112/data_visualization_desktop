@@ -16,10 +16,14 @@ export interface Segment {
   video: string
   subtitle: string
   subtitleEn: string
-  aliveDuration: number
-  animInterval: number
 }
 
 export function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
+
+export function reload() {
+  // @ts-ignore
+  window.api.reloadSilently()
+}
+

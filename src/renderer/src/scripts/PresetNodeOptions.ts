@@ -2,8 +2,6 @@ import chroma from 'chroma-js'
 import { NodeOptions, NodeData } from '@antv/g6'
 import { appConfig } from './GlobalConfig'
 
-const cfg = appConfig()
-
 function dynamicNodeSize(node: NodeData): number {
   let size = 10
   let level = node.data.level as number
@@ -27,7 +25,7 @@ function dynamicNodeSize(node: NodeData): number {
 }
 
 function dynamicNodeLineWidth(node: NodeData): number {
-  if (cfg.dark) {
+  if (appConfig().KnowledgeGraphConfig.darkMode) {
     return 0.04 * ((node.data.level as number + 1) * 0.5) * dynamicNodeSize(node)
   }
   return 0.02 * ((node.data.level as number + 1) * 0.5) * dynamicNodeSize(node)
@@ -35,7 +33,7 @@ function dynamicNodeLineWidth(node: NodeData): number {
 
 function dynamicNodeColor(node: NodeData): string {
   let colors = ['#eaf2ff', '#90aeff', '#5187fb']
-  if (cfg.dark) {
+  if (appConfig().KnowledgeGraphConfig.darkMode) {
     return '#ffffff'
   }
   let i = node.data.level as number
@@ -46,7 +44,7 @@ function dynamicNodeColor(node: NodeData): string {
 }
 
 function dynamicNodeLineColor(node: NodeData): string {
-  if (cfg.dark) {
+  if (appConfig().KnowledgeGraphConfig.darkMode) {
     let color = dynamicNodeColor(node)
     return chroma(color).darken(1).hex()
   }
@@ -107,7 +105,7 @@ function dynamicLabelOffsetY(node: NodeData) {
 }
 
 function dynamicLabelFill(node: NodeData): string {
-  if (cfg.dark) {
+  if (appConfig().KnowledgeGraphConfig.darkMode) {
     if (dynamicLabelTextAlign(node) === 'center') {
       return '#000000'
     }

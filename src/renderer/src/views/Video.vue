@@ -5,15 +5,17 @@ import { apiAddress } from '../scripts/Service'
 import { appConfig } from '../scripts/GlobalConfig'
 
 const cfg = appConfig()
+const subtitleLanguage = cfg.PicturesConfig.subtitleLanguage
 
-const zh = cfg.subtitleLanguage.indexOf('zh') !== -1
-const en = cfg.subtitleLanguage.indexOf('en') !== -1
+const zh = subtitleLanguage.indexOf('zh') !== -1
+const en = subtitleLanguage.indexOf('en') !== -1
 
 let video: HTMLVideoElement | null = null
 let preloadVideo: HTMLVideoElement | null = null
 
 const subtitleDiv = ref<HTMLDivElement | null>(null)
 const subtitleEnDiv = ref<HTMLDivElement | null>(null)
+const subtitleTestDiv = ref<HTMLDivElement | null>(null)
 const audio = ref<HTMLAudioElement | null>(null)
 
 let animationId: number = Date.now()
@@ -25,6 +27,7 @@ async function subtitleAnimation(subtitle: string, subtitleEn: string, maxWidth:
   if (!subtitle || subtitle.length === 0 || (!zh && !en)) {
     return
   }
+
   if (zh) {
     subtitleDiv.value.style.maxWidth = `${maxWidth}px`
   } else {
@@ -59,12 +62,10 @@ async function subtitleAnimation(subtitle: string, subtitleEn: string, maxWidth:
     }
 
     // 根据zh行数调整中英文字幕间距
-    // if (zh && en) {
-      // subtitleDiv.value.style.bottom = '50px'
-      // 50 + 10 + 18.391 + 10 + 2 + 10
-      // console.log(subtitleDiv.value.off)
-      // subtitleEnDiv.value.style.bottom = `${100 + Math.floor((sectionZH.length - 1) / 34) * 18.391}px`
-    // }
+    if (zh && en) {
+      subtitleDiv.value.style.bottom = '50px'
+      subtitleEnDiv.value.style.bottom = `${50 + subtitleDiv.value.offsetHeight + 5}px`
+    }
 
     if (audioAvailable) {
       audioAvailable = false
@@ -137,7 +138,6 @@ function setVideo(s: string) {
     // console.log('preload video available, switch.')
     return Promise.resolve()
   }
-
   // console.log('preload video not available, load now.')
 
   const currentSegmentId = segmentId
@@ -160,7 +160,7 @@ function setVideo(s: string) {
   })
 }
 
-async function update(seg: Segment) {
+async function update(seg: Segment, animInterval: number) {
   segmentId = Date.now()
 
   if (!video) return
@@ -169,7 +169,7 @@ async function update(seg: Segment) {
   showVideo()
 
   animationId = Date.now()
-  await subtitleAnimation(seg.subtitle, seg.subtitleEn, video.clientWidth, seg.animInterval)
+  await subtitleAnimation(seg.subtitle, seg.subtitleEn, video.clientWidth, animInterval)
 }
 
 const audioOnCanPlayThrough = () => {
@@ -199,6 +199,21 @@ const audioOnError = () => {
 const videoOnLoadedMetaData = (e: any) => {
   //@ts-ignore
   e.target.available = true
+}
+
+// @ts-ignore
+const subtitleDivSize = (str: string, maxWidth: number) => {
+  if (maxWidth <= 0) {
+    subtitleTestDiv.value.style.maxWidth = ''
+  } else {
+    subtitleTestDiv.value.style.maxWidth = `${maxWidth}px`
+  }
+  subtitleTestDiv.value.textContent = str
+
+  return {
+    width: subtitleTestDiv.value.offsetWidth,
+    height: subtitleTestDiv.value.offsetHeight
+  }
 }
 
 onMounted(async () => {
@@ -243,14 +258,11 @@ defineExpose({ update, stop, setPreloadVideo })
 
 <template>
   <div class="container">
-    <!--    <div ref="spinningDiv" class="spinning">-->
-    <!--      <a-spin tip="Loading..." :spinning="true" size="large"></a-spin>-->
-    <!--    </div>-->
-    <!--    <img ref="image" alt="image" class="image" src=""/>-->
     <video id="video" class="video" autoplay loop muted playsinline></video>
     <video id="preloadVideo" class="video" autoplay loop muted playsinline></video>
     <div ref="subtitleEnDiv" class="subtitleEn"></div>
     <div ref="subtitleDiv" class="subtitle"></div>
+    <div ref="subtitleTestDiv" class="subtitleTest"></div>
     <audio ref="audio"></audio>
   </div>
 </template>
@@ -305,6 +317,24 @@ defineExpose({ update, stop, setPreloadVideo })
     bottom: 100.391px;
     color: white;
     background-color: rgba(0, 0, 0, 0.5);
+
+    font-size: 16px;
+    font-weight: normal;
+    font-family: Alibaba-Regular, sans-serif;
+
+    text-align: center;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-wrap: break-word;
+  }
+
+  .subtitleTest {
+    display: block;
+    position: absolute;
+    bottom: -2000px;
+    color: white;
+    background-color: rgba(0, 0, 0, 0);
+    opacity: 0;
 
     font-size: 16px;
     font-weight: normal;

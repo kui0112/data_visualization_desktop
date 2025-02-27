@@ -138,7 +138,7 @@ function setImage(e: HTMLImageElement, s: string) {
   })
 }
 
-async function update(seg: Segment) {
+async function update(seg: Segment, animInterval: number) {
   segment = seg
   segmentId = Date.now()
 
@@ -158,7 +158,7 @@ async function update(seg: Segment) {
 
   animationId = Date.now()
   if (subtitleMode === 'typewriter') {
-    await subtitleAnimation(seg.subtitle, seg.subtitleEn, maxWidth, seg.animInterval)
+    await subtitleAnimation(seg.subtitle, seg.subtitleEn, maxWidth, animInterval)
   } else {
     subtitleNoAnimation(seg.subtitle, seg.subtitleEn, maxWidth)
   }

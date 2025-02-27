@@ -1,10 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-ipcRenderer.on('reload', () => {
-  window.location.reload()
-})
-
 // Custom APIs for renderer
 const api = {
   isFullScreen: () => ipcRenderer.invoke('isFullScreen'),
