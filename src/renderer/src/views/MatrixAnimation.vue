@@ -14,6 +14,7 @@ const cfg = appConfig()
 
 let currentObjectName: string = 'nothing'
 let mask: HTMLElement | null = null
+let reloadTimeout: NodeJS.Timeout | null = null
 
 const objectNameUpdate = async (data: any) => {
   if (router.currentRoute.value.name !== 'VectorAnimation') {
@@ -26,6 +27,10 @@ const objectNameUpdate = async (data: any) => {
 
 onMounted(async () => {
   eventbus.on('objectNameUpdate', objectNameUpdate)
+
+  reloadTimeout = setTimeout(() => {
+    reload()
+  }, cfg.VectorAnimationConfig.displayDuration * 1000)
 
   mask = document.getElementById('matrixAnimationMask')
   animation.initialize(canvas.value)
@@ -51,6 +56,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   eventbus.off('objectNameUpdate', objectNameUpdate)
+  clearTimeout(reloadTimeout)
 })
 
 </script>
