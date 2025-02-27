@@ -67,7 +67,7 @@ class AnimationLoop {
       // stayTime(2) + animTime(7.5)*stayTimePercent(0.7) = delayTime(25.25)
       //
       const delayTime = eval(`${animTime} + ${stayTime} + ${animTime} * ${stayTimePercent}`)
-      console.log(`delayTime=${delayTime}`)
+      // console.log(`delayTime=${delayTime}`)
       await delay(delayTime)
 
       if (this.cursor === 0) {
@@ -114,7 +114,7 @@ onMounted(async () => {
 
   currentObjectName = (await service.currentObjectName()).content
   if (!currentObjectName) {
-    console.log('error: null result from http.')
+    console.log('error: null result from server.')
     mask.style.display = 'block'
     animationLoop?.stop()
     return

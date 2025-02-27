@@ -79,7 +79,7 @@ onMounted(async () => {
   const cfg = await window.api.appConfig()
   setAppConfig(cfg)
 
-  console.log(appConfig())
+  // console.log(appConfig())
 
   window.addEventListener('keydown', keydownListener)
 
